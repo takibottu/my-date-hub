@@ -31,6 +31,9 @@ export default function CategoryPage() {
 
   const getFileIcon = (filename: string) => {
     const extension = filename.split('.').pop()?.toLowerCase();
+    if (extension === 'url') {
+      return '🔗';
+    }
     if (['png', 'jpg', 'jpeg', 'gif'].includes(extension || '')) {
       return '🖼️';
     } else if (['mp4', 'webm', 'ogg'].includes(extension || '')) {
@@ -44,15 +47,26 @@ export default function CategoryPage() {
     }
   };
 
+  const handleFileClick = async (file: MediaFile) => {
+    const filePath = `${category}/${file.filename}`;
+    if (file.filename.endsWith('.url')) {
+      try {
+        const res = await fetch(`/media/${filePath}`);
+        const url = await res.text();
+        window.open(url, '_blank');
+      } catch (error) {
+        console.error('Failed to read URL file:', error);
+      }
+    } else {
+      setSelectedFile(filePath);
+    }
+  };
+
   const handleShare = (filename: string) => {
     const url = `${window.location.origin}/media/${category}/${filename}`;
     navigator.clipboard.writeText(url);
     alert(`Copied to clipboard: ${url}`);
   };
-
-  const fullFilePath = (filename: string) => {
-    return `${category}/${filename}`;
-  }
 
   return (
     <main className="container mx-auto p-4">
@@ -68,13 +82,13 @@ export default function CategoryPage() {
           >
             <div 
               className="text-5xl mb-2"
-              onClick={() => setSelectedFile(fullFilePath(file.filename))}
+              onClick={() => handleFileClick(file)}
             >
               {getFileIcon(file.filename)}
             </div>
             <p 
               className="font-semibold text-center truncate w-full"
-              onClick={() => setSelectedFile(fullFilePath(file.filename))}
+              onClick={() => handleFileClick(file)}
             >
               {file.filename}
             </p>

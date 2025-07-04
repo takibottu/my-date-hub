@@ -23,27 +23,44 @@ const getFileCategory = (file: File) => {
 
 export async function POST(request: Request) {
   const formData = await request.formData();
-  const file = formData.get('file') as File;
+  const file = formData.get('file') as File | null;
+  const url = formData.get('url') as string | null;
 
-  if (!file) {
-    return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-  }
+  if (file) {
+    const category = getFileCategory(file);
+    const categoryDir = path.join(mediaDir, category);
 
-  const category = getFileCategory(file);
-  const categoryDir = path.join(mediaDir, category);
+    if (!fs.existsSync(categoryDir)) {
+      fs.mkdirSync(categoryDir, { recursive: true });
+    }
 
-  if (!fs.existsSync(categoryDir)) {
-    fs.mkdirSync(categoryDir, { recursive: true });
-  }
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const filePath = path.join(categoryDir, file.name);
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const filePath = path.join(categoryDir, file.name);
+    try {
+      fs.writeFileSync(filePath, buffer);
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      return NextResponse.json({ error: 'Failed to save file' }, { status: 500 });
+    }
+  } else if (url) {
+    const bookmarksDir = path.join(mediaDir, 'bookmarks');
 
-  try {
-    fs.writeFileSync(filePath, buffer);
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to save file' }, { status: 500 });
+    if (!fs.existsSync(bookmarksDir)) {
+      fs.mkdirSync(bookmarksDir, { recursive: true });
+    }
+
+    try {
+      const urlObject = new URL(url);
+      const filename = `${urlObject.hostname.replace(/\./g, '_')}_${Date.now()}.url`;
+      const filePath = path.join(bookmarksDir, filename);
+      fs.writeFileSync(filePath, url);
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      return NextResponse.json({ error: 'Invalid URL or failed to save bookmark' }, { status: 500 });
+    }
+  } else {
+    return NextResponse.json({ error: 'No file or URL provided' }, { status: 400 });
   }
 }
 
