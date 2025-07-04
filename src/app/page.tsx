@@ -1,79 +1,106 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import MediaModal from '@/components/MediaModal';
+import { useRouter } from 'next/navigation';
 
-interface MediaFile {
-  filename: string;
-  mtime: number;
+interface FilesByCategory {
+  [key: string]: { filename: string; mtime: number }[];
 }
 
 export default function Home() {
-  const [files, setFiles] = useState<MediaFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [filesByCategory, setFilesByCategory] = useState<FilesByCategory>({});
+  const [uploading, setUploading] = useState(false);
+  const router = useRouter();
+
+  const fetchFiles = async () => {
+    const res = await fetch('/api/files');
+    const data = await res.json();
+    setFilesByCategory(data);
+  };
 
   useEffect(() => {
-    const fetchFiles = async () => {
-      const res = await fetch('/api/files');
-      const data = await res.json();
-      setFiles(data);
-    };
-
     fetchFiles();
   }, []);
 
-  const getFileIcon = (filename: string) => {
-    const extension = filename.split('.').pop()?.toLowerCase();
-    if (extension === 'png' || extension === 'jpg' || extension === 'jpeg' || extension === 'gif') {
-      return '🖼️'; // Image icon
-    } else if (extension === 'mp4' || extension === 'webm' || extension === 'ogg') {
-      return '🎥'; // Video icon
-    } else if (extension === 'mp3' || extension === 'wav') {
-      return '🎵'; // Audio icon
-    } else if (extension === 'pdf') {
-      return '📄'; // PDF icon
-    } else {
-      return '📝'; // Text icon
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/files', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        // Refresh file list
+        fetchFiles();
+      } else {
+        console.error('File upload failed');
+      }
+    } catch (error) {
+      console.error('File upload error:', error);
+    } finally {
+      setUploading(false);
     }
   };
 
-  const handleShare = (filename: string) => {
-    const url = `${window.location.origin}/view/${filename}`;
-    navigator.clipboard.writeText(url);
-    alert(`Copied to clipboard: ${url}`);
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'images':
+        return '🖼️';
+      case 'videos':
+        return '🎥';
+      case 'audio':
+        return '🎵';
+      case 'pdfs':
+        return '📄';
+      case 'documents':
+        return '📝';
+      default:
+        return '📁';
+    }
   };
 
   return (
     <main className="container mx-auto p-4">
       <h1 className="text-4xl font-bold mb-8 text-center">Personal Media Hub</h1>
+      
+      <div className="mb-8 text-center">
+        <input
+          type="file"
+          id="file-upload"
+          className="hidden"
+          onChange={handleFileUpload}
+          disabled={uploading}
+        />
+        <label
+          htmlFor="file-upload"
+          className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+          {uploading ? 'Uploading...' : 'Upload File'}
+        </label>
+      </div>
+
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-        {files.map((file) => (
+        {Object.keys(filesByCategory).map((category) => (
           <div 
-            key={file.filename} 
+            key={category} 
             className="border rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow duration-200"
+            onClick={() => router.push(`/view/${category}`)}
           >
-            <div 
-              className="text-5xl mb-2"
-              onClick={() => setSelectedFile(file.filename)}
-            >
-              {getFileIcon(file.filename)}
+            <div className="text-5xl mb-2">
+              {getCategoryIcon(category)}
             </div>
-            <p 
-              className="font-semibold text-center truncate w-full"
-              onClick={() => setSelectedFile(file.filename)}
-            >
-              {file.filename}
+            <p className="font-semibold text-center truncate w-full">
+              {category.charAt(0).toUpperCase() + category.slice(1)}
             </p>
-            <button 
-              onClick={() => handleShare(file.filename)} 
-              className="mt-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs"
-            >
-              Share
-            </button>
           </div>
         ))}
       </div>
-      {selectedFile && <MediaModal filename={selectedFile} onClose={() => setSelectedFile(null)} />}
     </main>
   );
 }

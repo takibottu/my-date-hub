@@ -13,11 +13,11 @@ export default function MediaModal({ filename, onClose }: MediaModalProps) {
   useEffect(() => {
     if (filename) {
       const extension = filename.split('.').pop()?.toLowerCase();
-      if (extension === 'png' || extension === 'jpg' || extension === 'jpeg' || extension === 'gif') {
+      if (['png', 'jpg', 'jpeg', 'gif'].includes(extension || '')) {
         setFileType('image');
-      } else if (extension === 'mp4' || extension === 'webm' || extension === 'ogg') {
+      } else if (['mp4', 'webm', 'ogg'].includes(extension || '')) {
         setFileType('video');
-      } else if (extension === 'mp3' || extension === 'wav') {
+      } else if (['mp3', 'wav'].includes(extension || '')) {
         setFileType('audio');
       } else if (extension === 'pdf') {
         setFileType('pdf');
